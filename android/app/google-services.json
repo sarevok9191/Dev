@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "521925336650",
+    "project_id": "boosttrainingcourt-60158",
+    "storage_bucket": "boosttrainingcourt-60158.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:521925336650:android:1720d8443b2e22fc3250b3",
+        "android_client_info": {
+          "package_name": "com.example.my_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCIrF5H4U1c3kgREkMsnKQB8jV0SsKDrs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
