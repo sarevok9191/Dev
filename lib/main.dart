@@ -53,10 +53,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  String loggedInTrainer = '';
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
   String errorMessage = '';
-  String loggedInTrainer = '';
+
 
   Future<void> _login() async {
     String username = _usernameController.text;
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       loggedInTrainer = 'Sulo';
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => TrainerScreen()),
+        MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
       );
     }
     else if(username == 'Fero' && password == '123') {
@@ -300,7 +301,7 @@ Widget build(BuildContext context) {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => CalendarScreen()),
+                  MaterialPageRoute(builder: (context) => CalendarScreen(loggedInTrainer: loggedInTrainer)),
                 );
               },
             ),
@@ -383,6 +384,9 @@ class UserScreen extends StatelessWidget {
 }
 
 class CalendarScreen extends StatefulWidget {
+  final String loggedInTrainer;
+
+  CalendarScreen({Key? key, required this.loggedInTrainer}) : super(key: key);
   @override
   _CalendarScreenState createState() => _CalendarScreenState();
 }
@@ -425,51 +429,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Future<void> _saveSchedule(DateTime date, List<String> userIds, TimeOfDay startTime, TimeOfDay endTime, {String? scheduleId}) async {
-    CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
-    DocumentReference dateDocRef = schedulesCollection.doc(date.toIso8601String());
+ Future<void> _saveSchedule(DateTime date, List<String> userIds, TimeOfDay startTime, TimeOfDay endTime, {String? scheduleId}) async {
+  CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
+  DocumentReference dateDocRef = schedulesCollection.doc(date.toIso8601String());
 
-    // Check if the document for this date exists, and create it if not
-    DocumentSnapshot dateDoc = await dateDocRef.get();
-    if (!dateDoc.exists) {
-      await dateDocRef.set({'placeholder': true}); // Creates the doc with a placeholder field
-    }
+  // Create the schedule with outline color based on loggedInTrainer
+  Color outlineColor;
+  if (widget.loggedInTrainer == 'Sulo') {
+    outlineColor = Colors.yellow;
+  } else if (widget.loggedInTrainer == 'Fero') {
+    outlineColor = Colors.red;
+  } else {
+    outlineColor = Colors.grey; // Default color
+  }
 
-    // Proceed to add event in the 'events' subcollection of the date document
-    CollectionReference eventsCollection = dateDocRef.collection('events');
-
-    List<String> userNames = [];
-    for (String userId in userIds) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        userNames.add(userDoc['username']);
-      } else {
-        print('User document for $userId does not exist.');
-      }
-    }
-
-    if (scheduleId != null) {
-      // If editing, update the existing schedule
-      await eventsCollection.doc(scheduleId).update({
-        'userNames': userNames,
-        'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
-        'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-      });
+  // Proceed with saving logic
+  List<String> userNames = [];
+  for (String userId in userIds) {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      userNames.add(userDoc['username']);
     } else {
-      // Otherwise, create a new event
-      await eventsCollection.add({
-        'userNames': userNames,
-        'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
-        'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-      });
+      print('User document for $userId does not exist.');
     }
+  }
 
-    // Reload schedules after saving
-    await _loadSchedules();
-    setState(() {
-      _selectedDay = date; // Refresh selected day to reflect changes
+  if (scheduleId != null) {
+    // If editing, update the existing schedule
+    await dateDocRef.collection('events').doc(scheduleId).update({
+      'userNames': userNames,
+      'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
+      'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
+      'outlineColor': outlineColor.value, // Save the outline color
+    });
+  } else {
+    // Otherwise, create a new event
+    await dateDocRef.collection('events').add({
+      'userNames': userNames,
+      'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
+      'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
+      'outlineColor': outlineColor.value, // Save the outline color
     });
   }
+
+  await _loadSchedules();
+  setState(() {
+    _selectedDay = date; // Refresh selected day to reflect changes
+  });
+}
+
 
   void _showScheduleEditingDialog(Map<String, dynamic> schedule) async {
   List<Map<String, dynamic>> userList = [];
@@ -656,30 +664,36 @@ void _showScheduleCreationDialog() async {
 }
 
   Widget _buildScheduleList() {
-    return Expanded(
-      child: _schedules[_selectedDay]?.isNotEmpty == true
-          ? ListView.builder(
-              itemCount: _schedules[_selectedDay]?.length ?? 0,
-              itemBuilder: (context, index) {
-                final schedule = _schedules[_selectedDay]![index];
-                return Card(
-                  child: ListTile(
-                    title: Text('${schedule['userNames'].join(', ')}'),
-                    subtitle: Text(
-                      'Time: ${schedule['startTime']} - ${schedule['endTime']}',
-                    ),
-                    onTap: () => _showScheduleEditingDialog(schedule),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () => _deleteSchedule(schedule['id']),
-                    ),
+  return Expanded(
+    child: _schedules[_selectedDay]?.isNotEmpty == true
+        ? ListView.builder(
+            itemCount: _schedules[_selectedDay]?.length ?? 0,
+            itemBuilder: (context, index) {
+              final schedule = _schedules[_selectedDay]![index];
+              Color outlineColor = Color(schedule['outlineColor']); // Retrieve the outline color
+              return Card(
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: outlineColor, width: 2), // Set the outline color
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: ListTile(
+                  title: Text('${schedule['userNames'].join(', ')}'),
+                  subtitle: Text(
+                    'Time: ${schedule['startTime']} - ${schedule['endTime']}',
                   ),
-                );
-              },
-            )
-          : Center(child: Text('No schedules for this day')),
-    );
-  }
+                  onTap: () => _showScheduleEditingDialog(schedule),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () => _deleteSchedule(schedule['id']),
+                  ),
+                ),
+              );
+            },
+          )
+        : Center(child: Text('No schedules for this day')),
+  );
+}
+
 
   Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onChanged) {
     return Row(
