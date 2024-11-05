@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       loggedInTrainer = 'Fero';
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => TrainerScreen()),
+        MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer:loggedInTrainer)),
         );
     }
      else {
@@ -149,6 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
 class TrainerScreen extends StatefulWidget {
+  final String loggedInTrainer;
+  TrainerScreen ({Key? key, required this.loggedInTrainer}) : super(key: key);
  
   @override
   _TrainerScreenState createState() => _TrainerScreenState();
