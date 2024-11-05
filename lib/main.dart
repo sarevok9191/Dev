@@ -153,14 +153,16 @@ class TrainerScreen extends StatefulWidget {
   TrainerScreen ({Key? key, required this.loggedInTrainer}) : super(key: key);
  
   @override
-  _TrainerScreenState createState() => _TrainerScreenState();
+  _TrainerScreenState createState() => _TrainerScreenState(loggedInTrainer);
 }
 
 class _TrainerScreenState extends State<TrainerScreen> {
   List<Map<String, dynamic>> users = [];
-
+  String loggedInTrainer = "";
+_TrainerScreenState(this.loggedInTrainer);
   @override
   void initState() {
+    //loggedInTrainer = '';
     super.initState();
     _loadUsers();
   }
@@ -436,7 +438,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DocumentReference dateDocRef = schedulesCollection.doc(date.toIso8601String());
 
   // Create the schedule with outline color based on loggedInTrainer
-  Color outlineColor;
+  /*Color outlineColor;
   if (widget.loggedInTrainer == 'Sulo') {
     outlineColor = Colors.yellow;
   } else if (widget.loggedInTrainer == 'Fero') {
@@ -444,7 +446,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   } else {
     outlineColor = Colors.grey; // Default color
   }
-
+*/
   // Proceed with saving logic
   List<String> userNames = [];
   for (String userId in userIds) {
