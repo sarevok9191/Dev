@@ -427,12 +427,17 @@ _CalendarScreenState(this.loggedInTrainer);
       setState(() {
         if (_schedules[date] == null) _schedules[date] = [];
         for (var event in eventsSnapshot.docs) {
+          Map<String, dynamic>? eventData = event.data() as Map<String, dynamic>?;
+        String loggedInTrainer = eventData?.containsKey('createdBy') == true
+        ? event['createdBy']
+        : 'Unknown Trainer'; // Default value in case the field is missing  
           _schedules[date]?.add({
-            'created by' : event['loggedInTrainer'],
+            
             'id': event.id, // Store the schedule ID
             'userNames': List<String>.from(event['userNames']),
             'startTime': event['startTime'],
             'endTime': event['endTime'],
+            'createdBy' : loggedInTrainer,
           });
         }
       });
@@ -468,7 +473,7 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'created by': loggedInTrainer
+        'createdBy': loggedInTrainer
       });
     } else {
       // Otherwise, create a new event
@@ -476,7 +481,7 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'created by': loggedInTrainer
+        'createdBy': loggedInTrainer
       });
     }
 
@@ -685,7 +690,7 @@ _CalendarScreenState(this.loggedInTrainer);
                   child: ListTile(
                     title: Text('${schedule['userNames'].join(', ')}'),
                     subtitle: Text(
-                      'Time: ${schedule['startTime']} - ${schedule['endTime']} - Created by : ${schedule['created by']}',
+                      'Time: ${schedule['startTime']} - ${schedule['endTime']} - Created by : ${schedule['createdBy']}',
                     ),
                     onTap: () => _showScheduleEditingDialog(schedule),
                     trailing: IconButton(
