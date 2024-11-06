@@ -679,31 +679,47 @@ _CalendarScreenState(this.loggedInTrainer);
   );
 }
 
-  Widget _buildScheduleList() {
-    return Expanded(
-      child: _schedules[_selectedDay]?.isNotEmpty == true
-          ? ListView.builder(
-              itemCount: _schedules[_selectedDay]?.length ?? 0,
-              itemBuilder: (context, index) {
-                final schedule = _schedules[_selectedDay]![index];
-                return Card(
-                  child: ListTile(
-                    title: Text('${schedule['userNames'].join(', ')}'),
-                    subtitle: Text(
-                      'Time: ${schedule['startTime']} - ${schedule['endTime']} - Created by : ${schedule['createdBy']}',
-                    ),
-                    onTap: () => _showScheduleEditingDialog(schedule),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () => _deleteSchedule(schedule['id']),
-                    ),
+Widget _buildScheduleList() {
+  return Expanded(
+    child: _schedules[_selectedDay]?.isNotEmpty == true
+        ? ListView.builder(
+            itemCount: _schedules[_selectedDay]?.length ?? 0,
+            itemBuilder: (context, index) {
+              final schedule = _schedules[_selectedDay]![index];
+              
+              // Determine the border color based on the createdBy field
+              Color borderColor = Colors.grey; // Default color
+              String createdBy = schedule['createdBy'] ?? 'Unknown';
+
+              if (createdBy == 'Sulo') {
+                borderColor = Colors.yellow;
+              } else if (createdBy == 'Fero') {
+                borderColor = Colors.red;
+              }
+
+              return Card(
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: borderColor, width: 2), // Set border color here
+                  borderRadius: BorderRadius.circular(8), // Optional: set border radius for rounded corners
+                ),
+                child: ListTile(
+                  title: Text('${schedule['userNames'].join(', ')}'),
+                  subtitle: Text(
+                    'Time: ${schedule['startTime']} - ${schedule['endTime']}',
                   ),
-                );
-              },
-            )
-          : Center(child: Text('No schedules for this day')),
-    );
-  }
+                  onTap: () => _showScheduleEditingDialog(schedule),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () => _deleteSchedule(schedule['id']),
+                  ),
+                ),
+              );
+            },
+          )
+        : Center(child: Text('No schedules for this day')),
+  );
+}
+
 
   Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onChanged) {
     return Row(
