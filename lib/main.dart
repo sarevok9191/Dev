@@ -428,6 +428,7 @@ _CalendarScreenState(this.loggedInTrainer);
         if (_schedules[date] == null) _schedules[date] = [];
         for (var event in eventsSnapshot.docs) {
           _schedules[date]?.add({
+            'created by' : event['loggedInTrainer'],
             'id': event.id, // Store the schedule ID
             'userNames': List<String>.from(event['userNames']),
             'startTime': event['startTime'],
@@ -467,6 +468,7 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
+        'created by': loggedInTrainer
       });
     } else {
       // Otherwise, create a new event
@@ -474,6 +476,7 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
+        'created by': loggedInTrainer
       });
     }
 
@@ -682,7 +685,7 @@ _CalendarScreenState(this.loggedInTrainer);
                   child: ListTile(
                     title: Text('${schedule['userNames'].join(', ')}'),
                     subtitle: Text(
-                      'Time: ${schedule['startTime']} - ${schedule['endTime']}',
+                      'Time: ${schedule['startTime']} - ${schedule['endTime']} - Created by : ${schedule['created by']}',
                     ),
                     onTap: () => _showScheduleEditingDialog(schedule),
                     trailing: IconButton(
