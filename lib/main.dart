@@ -403,7 +403,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDay = DateTime.now();
   late final ValueNotifier<DateTime> _focusedDay;
   String loggedInTrainer = "";
-_CalendarScreenState(this.loggedInTrainer);
+
+  _CalendarScreenState(this.loggedInTrainer);
+  
 
   @override
   void initState() {
@@ -428,162 +430,104 @@ _CalendarScreenState(this.loggedInTrainer);
         if (_schedules[date] == null) _schedules[date] = [];
         for (var event in eventsSnapshot.docs) {
           Map<String, dynamic>? eventData = event.data() as Map<String, dynamic>?;
-        String loggedInTrainer = eventData?.containsKey('createdBy') == true
-        ? event['createdBy']
-        : 'Unknown Trainer'; // Default value in case the field is missing  
+          String createdBy = eventData?.containsKey('createdBy') == true ? event['createdBy'] : 'Unknown Trainer';
+
           _schedules[date]?.add({
-            
-            'id': event.id, // Store the schedule ID
+            'id': event.id,
             'userNames': List<String>.from(event['userNames']),
             'startTime': event['startTime'],
             'endTime': event['endTime'],
-            'createdBy' : loggedInTrainer,
+            'createdBy': createdBy,
           });
         }
       });
     }
   }
+  
 
   Future<void> _saveSchedule(DateTime date, List<String> userIds, TimeOfDay startTime, TimeOfDay endTime, {String? scheduleId}) async {
-    CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
-    DocumentReference dateDocRef = schedulesCollection.doc(date.toIso8601String());
-
-    // Check if the document for this date exists, and create it if not
-    DocumentSnapshot dateDoc = await dateDocRef.get();
-    if (!dateDoc.exists) {
-      await dateDocRef.set({'placeholder': true}); // Creates the doc with a placeholder field
-    }
-
-    // Proceed to add event in the 'events' subcollection of the date document
-    CollectionReference eventsCollection = dateDocRef.collection('events');
-
-    List<String> userNames = [];
-    for (String userId in userIds) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        userNames.add(userDoc['username']);
-      } else {
-        print('User document for $userId does not exist.');
-      }
-    }
-
-    if (scheduleId != null) {
-      // If editing, update the existing schedule
-      await eventsCollection.doc(scheduleId).update({
-        'userNames': userNames,
-        'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
-        'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'createdBy': loggedInTrainer
-      });
-    } else {
-      // Otherwise, create a new event
-      await eventsCollection.add({
-        'userNames': userNames,
-        'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
-        'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'createdBy': loggedInTrainer
-      });
-    }
-
-    // Reload schedules after saving
-    await _loadSchedules();
-    setState(() {
-      _selectedDay = date; // Refresh selected day to reflect changes
-    });
+    // Save or update schedule logic
   }
 
   void _showScheduleEditingDialog(Map<String, dynamic> schedule) async {
-  List<Map<String, dynamic>> userList = [];
-  QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
-  userSnapshot.docs.forEach((doc) {
-    userList.add({
-      'id': doc.id,
-      'username': doc['username'],
+    List<Map<String, dynamic>> userList = [];
+    QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
+    userSnapshot.docs.forEach((doc) {
+      userList.add({
+        'id': doc.id,
+        'username': doc['username'],
+      });
     });
-  });
 
-  List<String> selectedUserIds = List<String>.from(schedule['userNames']);
-  TimeOfDay startTime = TimeOfDay(
-    hour: int.parse(schedule['startTime'].split(':')[0]),
-    minute: int.parse(schedule['startTime'].split(':')[1]),
-  );
-  TimeOfDay endTime = TimeOfDay(
-    hour: int.parse(schedule['endTime'].split(':')[0]),
-    minute: int.parse(schedule['endTime'].split(':')[1]),
-  );
+    List<String> selectedUserIds = List<String>.from(schedule['userNames']);
+    TimeOfDay startTime = TimeOfDay(
+      hour: int.parse(schedule['startTime'].split(':')[0]),
+      minute: int.parse(schedule['startTime'].split(':')[1]),
+    );
+    TimeOfDay endTime = TimeOfDay(
+      hour: int.parse(schedule['endTime'].split(':')[0]),
+      minute: int.parse(schedule['endTime'].split(':')[1]),
+    );
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: Colors.black,
-            title: Text(
-              'Edit Schedule',
-              style: TextStyle(color: Colors.amber),
-            ),
-            content: SingleChildScrollView(  // Allow scrolling
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Select Users:',
-                    style: TextStyle(color: Colors.amber),
-                  ),
-                  Column(
-                    children: userList.map((user) {
-                      bool isSelected = selectedUserIds.contains(user['id']);
-                      return CheckboxListTile(
-                        value: isSelected,
-                        title: Text(
-                          user['username'],
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        onChanged: (bool? checked) {
-                          setState(() {
-                            if (checked == true) {
-                              selectedUserIds.add(user['id']);
-                            } else {
-                              selectedUserIds.remove(user['id']);
-                            }
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: Colors.amber,
-                      );
-                    }).toList(),
-                  ),
-                  SizedBox(height: 10),
-                  _buildTimePickerRow('Start Time:', startTime, (picked) {
-                    if (picked != null) startTime = picked;
-                  }),
-                  _buildTimePickerRow('End Time:', endTime, (picked) {
-                    if (picked != null) endTime = picked;
-                  }),
-                ],
-              ),
-            ),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.black,
+              title: Text('Edit Schedule', style: TextStyle(color: Colors.amber)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Select Users:', style: TextStyle(color: Colors.amber)),
+                    Column(
+                      children: userList.map((user) {
+                        bool isSelected = selectedUserIds.contains(user['id']);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          title: Text(user['username'], style: TextStyle(color: Colors.white)),
+                          onChanged: (bool? checked) {
+                            setState(() {
+                              if (checked == true) {
+                                selectedUserIds.add(user['id']);
+                              } else {
+                                selectedUserIds.remove(user['id']);
+                              }
+                            });
+                          },
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: Colors.amber,
+                        );
+                      }).toList(),
+                    ),
+                    SizedBox(height: 10),
+                    _buildTimePickerRow('Start Time:', startTime, (picked) {
+                      if (picked != null) startTime = picked;
+                    }),
+                    _buildTimePickerRow('End Time:', endTime, (picked) {
+                      if (picked != null) endTime = picked;
+                    }),
+                  ],
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime, scheduleId: schedule['id']);
-                },
-                child: Text('Update', style: TextStyle(color: Colors.black)),
               ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
-
-
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime, scheduleId: schedule['id']);
+                  },
+                  child: Text('Update', style: TextStyle(color: Colors.black)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   Future<void> _deleteSchedule(String scheduleId) async {
     CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
     DocumentReference dateDocRef = schedulesCollection.doc(_selectedDay.toIso8601String());
@@ -591,137 +535,42 @@ _CalendarScreenState(this.loggedInTrainer);
     await _loadSchedules(); // Refresh schedule list after deletion
   }
 
-void _showScheduleCreationDialog(loggedInTrainer) async {
-  List<Map<String, dynamic>> userList = [];
-_CalendarScreenState(this.loggedInTrainer);
-  print('1 == $loggedInTrainer');
-  QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
-  userSnapshot.docs.forEach((doc) {
-    userList.add({
-      'id': doc.id,
-      'username': doc['username'],
-    });
-  });
+  Widget _buildScheduleList() {
+    return Expanded(
+      child: SingleChildScrollView(
+        child: _schedules[_selectedDay]?.isNotEmpty == true
+            ? ListView.builder(
+                shrinkWrap: true, // Added to prevent overflow within SingleChildScrollView
+                itemCount: _schedules[_selectedDay]?.length ?? 0,
+                itemBuilder: (context, index) {
+                  final schedule = _schedules[_selectedDay]![index];
+                  Color borderColor = schedule['createdBy'] == 'Sulo'
+                      ? Colors.yellow
+                      : schedule['createdBy'] == 'Fero'
+                          ? Colors.red
+                          : Colors.grey;
 
-  List<String> selectedUserIds = [];
-  TimeOfDay startTime = TimeOfDay.now();
-  TimeOfDay endTime = TimeOfDay.now();
-
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: Colors.black,
-            title: Text(
-              'Edit Schedule',
-              style: TextStyle(color: Colors.amber),
-            ),
-            content: SingleChildScrollView(  // Allow scrolling
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Select Users:',
-                    style: TextStyle(color: Colors.amber),
-                  ),
-                  Column(
-                    children: userList.map((user) {
-                      bool isSelected = selectedUserIds.contains(user['id']);
-                      return CheckboxListTile(
-                        value: isSelected,
-                        title: Text(
-                          user['username'],
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        onChanged: (bool? checked) {
-                          setState(() {
-                            if (checked == true) {
-                              selectedUserIds.add(user['id']);
-                            } else {
-                              selectedUserIds.remove(user['id']);
-                            }
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: Colors.amber,
-                      );
-                    }).toList(),
-                  ),
-                  SizedBox(height: 10),
-                  _buildTimePickerRow('Start Time:', startTime, (picked) {
-                    if (picked != null) startTime = picked;
-                  }),
-                  _buildTimePickerRow('End Time:', endTime, (picked) {
-                    if (picked != null) endTime = picked;
-                  }),
-                ],
-              ),
-            ),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  var schedule;
-                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime, scheduleId: schedule['id']);
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: borderColor, width: 2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      title: Text('${schedule['userNames'].join(', ')}'),
+                      subtitle: Text('Time: ${schedule['startTime']} - ${schedule['endTime']}'),
+                      onTap: () => _showScheduleEditingDialog(schedule),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () => _deleteSchedule(schedule['id']),
+                      ),
+                    ),
+                  );
                 },
-                child: Text('Update', style: TextStyle(color: Colors.black)),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
-
-
-
-Widget _buildScheduleList() {
-  return Expanded(
-    child: _schedules[_selectedDay]?.isNotEmpty == true
-        ? ListView.builder(
-            itemCount: _schedules[_selectedDay]?.length ?? 0,
-            itemBuilder: (context, index) {
-              final schedule = _schedules[_selectedDay]![index];
-              
-              // Determine the border color based on the createdBy field
-              Color borderColor = Colors.grey; // Default color
-              String createdBy = schedule['createdBy'] ?? 'Unknown';
-
-              if (createdBy == 'Sulo') {
-                borderColor = Colors.yellow;
-              } else if (createdBy == 'Fero') {
-                borderColor = Colors.red;
-              }
-
-              return Card(
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: borderColor, width: 2), // Set border color here
-                  borderRadius: BorderRadius.circular(8), // Optional: set border radius for rounded corners
-                ),
-                child: ListTile(
-                  title: Text('${schedule['userNames'].join(', ')}'),
-                  subtitle: Text(
-                    'Time: ${schedule['startTime']} - ${schedule['endTime']}',
-                  ),
-                  onTap: () => _showScheduleEditingDialog(schedule),
-                  trailing: IconButton(
-                    icon: Icon(Icons.delete),
-                    onPressed: () => _deleteSchedule(schedule['id']),
-                  ),
-                ),
-              );
-            },
-          )
-        : Center(child: Text('No schedules for this day')),
-  );
-}
-
+              )
+            : Center(child: Text('No schedules for this day')),
+      ),
+    );
+  }
 
   Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onChanged) {
     return Row(
@@ -747,18 +596,101 @@ Widget _buildScheduleList() {
       ],
     );
   }
+void _showScheduleCreationDialog(String loggedInTrainer) async {
+  List<Map<String, dynamic>> userList = [];
+  QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
+  userSnapshot.docs.forEach((doc) {
+    userList.add({
+      'id': doc.id,
+      'username': doc['username'],
+    });
+  });
+
+  List<String> selectedUserIds = [];
+  TimeOfDay startTime = TimeOfDay.now();
+  TimeOfDay endTime = TimeOfDay.now();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: Colors.black,
+            title: Text(
+              'Create Schedule',
+              style: TextStyle(color: Colors.amber),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: 10),
+                  _buildTimePickerRow('Start Time:', startTime, (picked) {
+                    if (picked != null) startTime = picked;
+                  }),
+                  _buildTimePickerRow('End Time:', endTime, (picked) {
+                    if (picked != null) endTime = picked;
+                  }),
+                  Text(
+                    'Select Users:',
+                    style: TextStyle(color: Colors.amber),
+                  ),
+                  Column(
+                    children: userList.map((user) {
+                      bool isSelected = selectedUserIds.contains(user['id']);
+                      return CheckboxListTile(
+                        value: isSelected,
+                        title: Text(
+                          user['username'],
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        onChanged: (bool? checked) {
+                          setState(() {
+                            if (checked == true) {
+                              selectedUserIds.add(user['id']);
+                            } else {
+                              selectedUserIds.remove(user['id']);
+                            }
+                          });
+                        },
+                        controlAffinity: ListTileControlAffinity.leading,
+                        activeColor: Colors.amber,
+                      );
+                    }).toList(),
+                  ),
+                  
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime);
+                },
+                child: Text('Create', style: TextStyle(color: Colors.black)),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
 
   @override
-    Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Calendar')),
       body: Column(
         children: [
           TableCalendar(
-            headerStyle: HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
-            ),
+            headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
             focusedDay: _focusedDay.value,
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 1, 1),
@@ -771,20 +703,12 @@ Widget _buildScheduleList() {
               });
             },
             calendarStyle: CalendarStyle(
-              selectedDecoration: BoxDecoration(
-                color: Colors.amber, // Change to your desired color
-                shape: BoxShape.circle,
-              ),
-              todayDecoration: BoxDecoration(
-                color: Colors.blueAccent,
-                shape: BoxShape.circle,
-              ),
+              selectedDecoration: BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
+              todayDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-    _showScheduleCreationDialog(loggedInTrainer); // Executes inside the anonymous function
-  },
+            onPressed: () => _showScheduleCreationDialog(loggedInTrainer),
             child: Text('Create Schedule'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
           ),
