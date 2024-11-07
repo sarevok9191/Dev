@@ -608,7 +608,6 @@ _CalendarScreenState(this.loggedInTrainer);
   TimeOfDay endTime = TimeOfDay.now();
 
   showDialog(
-    
     context: context,
     builder: (BuildContext context) {
       return StatefulBuilder(
@@ -616,7 +615,7 @@ _CalendarScreenState(this.loggedInTrainer);
           return AlertDialog(
             backgroundColor: Colors.black,
             title: Text(
-              'Create Schedule',
+              'Edit Schedule',
               style: TextStyle(color: Colors.amber),
             ),
             content: SingleChildScrollView(  // Allow scrolling
@@ -667,9 +666,10 @@ _CalendarScreenState(this.loggedInTrainer);
                 ),
                 onPressed: () {
                   Navigator.pop(context);
-                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime);
+                  var schedule;
+                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime, scheduleId: schedule['id']);
                 },
-                child: Text('Create', style: TextStyle(color: Colors.black)),
+                child: Text('Update', style: TextStyle(color: Colors.black)),
               ),
             ],
           );
@@ -678,6 +678,8 @@ _CalendarScreenState(this.loggedInTrainer);
     },
   );
 }
+
+
 
 Widget _buildScheduleList() {
   return Expanded(
