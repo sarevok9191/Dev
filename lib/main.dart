@@ -591,51 +591,75 @@ _CalendarScreenState(this.loggedInTrainer);
     await _loadSchedules(); // Refresh schedule list after deletion
   }
 
-void _showScheduleCreationDialog(loggedInTrainer) async {
+void _showScheduleCreationDialog(String loggedInTrainer) async {
   List<Map<String, dynamic>> userList = [];
-_CalendarScreenState(this.loggedInTrainer);
-  print('1 == $loggedInTrainer');
+  List<Map<String, dynamic>> filteredUsers = [];
+  TextEditingController searchController = TextEditingController();
+  
+  // Load users from Firestore
   QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
   userSnapshot.docs.forEach((doc) {
-    userList.add({
-      'id': doc.id,
-      'username': doc['username'],
-    });
+    userList.add({'id': doc.id, 'username': doc['username']});
   });
-
+  
+  filteredUsers = List.from(userList); // Initially show all users
+  
   List<String> selectedUserIds = [];
   TimeOfDay startTime = TimeOfDay.now();
   TimeOfDay endTime = TimeOfDay.now();
 
   showDialog(
-    
     context: context,
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setState) {
+          // Method to filter users based on search input
+          void filterUsers(String query) {
+            setState(() {
+              filteredUsers = userList.where((user) {
+                return user['username']
+                    .toLowerCase()
+                    .contains(query.toLowerCase());
+              }).toList();
+            });
+          }
+
           return AlertDialog(
             backgroundColor: Colors.black,
             title: Text(
               'Create Schedule',
               style: TextStyle(color: Colors.amber),
             ),
-            content: SingleChildScrollView(  // Allow scrolling
+            content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 10),
+                  // Time Pickers
                   _buildTimePickerRow('Start Time:', startTime, (picked) {
-                    if (picked != null) startTime = picked;
+                    if (picked != null) setState(() => startTime = picked);
                   }),
                   _buildTimePickerRow('End Time:', endTime, (picked) {
-                    if (picked != null) endTime = picked;
+                    if (picked != null) setState(() => endTime = picked);
                   }),
-                  Text(
-                    'Select Users:',
-                    style: TextStyle(color: Colors.amber),
+                  // Search Bar for Users
+                  TextField(
+                    controller: searchController,
+                    onChanged: filterUsers,
+                    decoration: InputDecoration(
+                      hintText: 'Search users',
+                      hintStyle: TextStyle(color: Colors.white54),
+                      prefixIcon: Icon(Icons.search, color: Colors.amber),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.amber)),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.amber)),
+                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
+                  SizedBox(height: 10),
+                  // User Selection with Checkboxes
                   Column(
-                    children: userList.map((user) {
+                    children: filteredUsers.map((user) {
                       bool isSelected = selectedUserIds.contains(user['id']);
                       return CheckboxListTile(
                         value: isSelected,
@@ -657,7 +681,6 @@ _CalendarScreenState(this.loggedInTrainer);
                       );
                     }).toList(),
                   ),
-                  
                 ],
               ),
             ),
@@ -679,6 +702,7 @@ _CalendarScreenState(this.loggedInTrainer);
     },
   );
 }
+
 
 Widget _buildScheduleList() {
   return Expanded(
@@ -722,30 +746,30 @@ Widget _buildScheduleList() {
 }
 
 
-  Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onChanged) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(color: Colors.amber)),
-        TextButton(
-          onPressed: () async {
-            final TimeOfDay? picked = await showTimePicker(
-              context: context,
-              initialTime: time,
-              builder: (BuildContext context, Widget? child) {
-                return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-                  child: child ?? const SizedBox(),
-                );
-              },
-            );
-            onChanged(picked);
-          },
-          child: Text('${time.hour}:${time.minute.toString().padLeft(2, '0')}', style: TextStyle(color: Colors.amber)),
-        ),
-      ],
-    );
-  }
+  Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onTimeChanged) {
+  return Row(
+    children: [
+      Text(
+        label,
+        style: TextStyle(color: Colors.amber),
+      ),
+      IconButton(
+        icon: Icon(Icons.access_time, color: Colors.amber),
+        onPressed: () async {
+          TimeOfDay? picked = await showTimePicker(
+            context: context,
+            initialTime: time,
+          );
+          if (picked != null) onTimeChanged(picked);
+        },
+      ),
+      Text(
+        time.format(context),
+        style: TextStyle(color: Colors.amber),
+      ),
+    ],
+  );
+}
 
   @override
     Widget build(BuildContext context) {
