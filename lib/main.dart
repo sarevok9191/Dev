@@ -875,9 +875,8 @@ Widget _buildScheduleList() {
                 ),
                 child: ListTile(
                   title: Text('${schedule['userNames'].join(', ')}'),
-                  subtitle: Text(
-                    'Time: ${schedule['startTime']} - ${schedule['endTime']} - Type: $type',
-                  ), // Added type after endTime
+                  subtitle: Text('Time: ${schedule['startTime']} - ${schedule['endTime']} - ${schedule['type'] ?? 'No Type'}'),
+ // Added type after endTime
                   onTap: () => _showScheduleEditingDialog(schedule),
                   trailing: IconButton(
                     icon: Icon(Icons.delete),
