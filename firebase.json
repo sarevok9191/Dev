@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"boosttrainingcourt-60158","appId":"1:521925336650:android:1720d8443b2e22fc3250b3","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"boosttrainingcourt-60158","configurations":{"android":"1:521925336650:android:1720d8443b2e22fc3250b3","ios":"1:521925336650:ios:3fb18232508978ec3250b3"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "boosttrainingcourt-60158",
+          "appId": "1:521925336650:android:1720d8443b2e22fc3250b3",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "boosttrainingcourt-60158",
+          "configurations": {
+            "android": "1:521925336650:android:1720d8443b2e22fc3250b3",
+            "ios": "1:521925336650:ios:3fb18232508978ec3250b3"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

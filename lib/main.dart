@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,15 +71,13 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
       MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
     );
-  }
-  else if (username == 'Fero' && password == '123') {
+  } else if (username == 'Fero' && password == '123') {
     loggedInTrainer = 'Fero';
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
     );
-  }
-  else {
+  } else {
     List<Map<String, dynamic>> userCredentials = await getUserCredentials();
     bool loginSuccess = false;
 
@@ -87,6 +86,14 @@ class _LoginScreenState extends State<LoginScreen> {
         loginSuccess = true;
         loggedInUser = user['username'];
 
+        // Get FCM token for logged-in user
+        String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+        // Store the FCM token in Firestore (for example, in the 'users' collection)
+        await FirebaseFirestore.instance.collection('users').doc(loggedInUser).update({
+          'fcmToken': fcmToken,
+        });
+
         // Pass 'user' and 'loggedInUser' to UserScreen constructor
         Navigator.pushReplacement(
           context,
@@ -94,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (context) => UserScreen({
               'username': loggedInUser,
               'sessionCount': user['sessionCount'],
-              'loggedInTrainer': 'N/A' // Or pass the correct loggedInTrainer if needed
+              'loggedInTrainer': 'N/A', // Or pass the correct loggedInTrainer if needed
             }, loggedInUser),
           ),
         );
@@ -109,6 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 }
+
 
   Future<List<Map<String, dynamic>>> getUserCredentials() async {
     List<Map<String, dynamic>> userList = [];
