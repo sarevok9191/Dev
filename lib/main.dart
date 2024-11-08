@@ -54,51 +54,61 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   String loggedInTrainer = '';
+  String loggedInUser = '';
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
   String errorMessage = '';
   
 
   Future<void> _login() async {
-    String username = _usernameController.text;
-    String password = _passwordController.text;
+  String username = _usernameController.text;
+  String password = _passwordController.text;
 
-    if (username == 'Sulo' && password == '123') {
-      loggedInTrainer = 'Sulo';
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
-      );
-    }
-    else if(username == 'Fero' && password == '123') {
-      loggedInTrainer = 'Fero';
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer:loggedInTrainer)),
+  if (username == 'Sulo' && password == '123') {
+    loggedInTrainer = 'Sulo';
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
+    );
+  }
+  else if (username == 'Fero' && password == '123') {
+    loggedInTrainer = 'Fero';
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => TrainerScreen(loggedInTrainer: loggedInTrainer)),
+    );
+  }
+  else {
+    List<Map<String, dynamic>> userCredentials = await getUserCredentials();
+    bool loginSuccess = false;
+
+    for (var user in userCredentials) {
+      if (username == user['username'] && password == user['password']) {
+        loginSuccess = true;
+        loggedInUser = user['username'];
+
+        // Pass 'user' and 'loggedInUser' to UserScreen constructor
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserScreen({
+              'username': loggedInUser,
+              'sessionCount': user['sessionCount'],
+              'loggedInTrainer': 'N/A' // Or pass the correct loggedInTrainer if needed
+            }, loggedInUser),
+          ),
         );
+        break;
+      }
     }
-     else {
-      List<Map<String, dynamic>> userCredentials = await getUserCredentials();
-      bool loginSuccess = false;
 
-      for (var user in userCredentials) {
-        if (username == user['username'] && password == user['password']) {
-          loginSuccess = true;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => UserScreen(user)),
-          );
-          break;
-        }
-      }
-
-      if (!loginSuccess) {
-        setState(() {
-          errorMessage = 'Invalid username or password';
-        });
-      }
+    if (!loginSuccess) {
+      setState(() {
+        errorMessage = 'Invalid username or password';
+      });
     }
   }
+}
 
   Future<List<Map<String, dynamic>>> getUserCredentials() async {
     List<Map<String, dynamic>> userList = [];
@@ -368,31 +378,62 @@ Widget build(BuildContext context) {
 
 
 class UserScreen extends StatelessWidget {
-  final Map<String, dynamic> user;
+  final Map<String, dynamic> user;  // The user data map
+  final String loggedInUser;  // The username of the logged-in user
 
-  UserScreen(this.user);
+  UserScreen(this.user, this.loggedInUser);  // Constructor with two positional arguments
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('User Dashboard'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('User Dashboard'),
+            IconButton(
+              icon: Icon(Icons.calendar_today),
+              onPressed: () {
+                // Navigate to CalendarScreen and pass the 'loggedInUser' for filtering
+                Navigator.push(
+                  context,
+              MaterialPageRoute(builder: (context) => UserCalendarScreen(username: loggedInUser),
+  ),
+);
+              },
+            ),
+          ],
+        ),
       ),
       body: Center(
-        child: Text(
-          'Welcome ${user['username']}\nSessions: ${user['sessionCount']}',
-          textAlign: TextAlign.center,
+        child: Container(
+          width: 200,
+          height: 200,
+          decoration: BoxDecoration(
+            color: Colors.yellow,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            'Welcome ${user['username']}\nSessions: ${user['sessionCount']}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
         ),
       ),
     );
   }
 }
 
+
+
 class CalendarScreen extends StatefulWidget {
 
+ final String? username; // Optional username parameter for filtering
   final String loggedInTrainer;
 
-  CalendarScreen({Key? key, required this.loggedInTrainer}) : super(key: key);
+
+  CalendarScreen({Key? key,this.username, required this.loggedInTrainer}) : super(key: key);
 
   @override
   _CalendarScreenState createState() => _CalendarScreenState(loggedInTrainer);
@@ -403,6 +444,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDay = DateTime.now();
   late final ValueNotifier<DateTime> _focusedDay;
   String loggedInTrainer = "";
+  String type = '';
 _CalendarScreenState(this.loggedInTrainer);
 
   @override
@@ -413,38 +455,51 @@ _CalendarScreenState(this.loggedInTrainer);
   }
 
   Future<void> _loadSchedules() async {
-    CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
-    QuerySnapshot snapshot = await schedulesCollection.get();
+  CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
+  QuerySnapshot snapshot = await schedulesCollection.get();
+
+  setState(() {
+    _schedules = {};
+  });
+
+  for (var doc in snapshot.docs) {
+    DateTime date = DateTime.parse(doc.id);
+    QuerySnapshot eventsSnapshot = await schedulesCollection.doc(doc.id).collection('events').get();
 
     setState(() {
-      _schedules = {};
-    });
-
-    for (var doc in snapshot.docs) {
-      DateTime date = DateTime.parse(doc.id);
-      QuerySnapshot eventsSnapshot = await schedulesCollection.doc(doc.id).collection('events').get();
-
-      setState(() {
-        if (_schedules[date] == null) _schedules[date] = [];
-        for (var event in eventsSnapshot.docs) {
-          Map<String, dynamic>? eventData = event.data() as Map<String, dynamic>?;
+      if (_schedules[date] == null) _schedules[date] = [];
+      for (var event in eventsSnapshot.docs) {
+        Map<String, dynamic>? eventData = event.data() as Map<String, dynamic>?;
         String loggedInTrainer = eventData?.containsKey('createdBy') == true
-        ? event['createdBy']
-        : 'Unknown Trainer'; // Default value in case the field is missing  
-          _schedules[date]?.add({
-            
-            'id': event.id, // Store the schedule ID
-            'userNames': List<String>.from(event['userNames']),
-            'startTime': event['startTime'],
-            'endTime': event['endTime'],
-            'createdBy' : loggedInTrainer,
-          });
-        }
-      });
-    }
-  }
+            ? event['createdBy']
+            : 'Unknown Trainer'; // Default value in case the field is missing
 
-  Future<void> _saveSchedule(DateTime date, List<String> userIds, TimeOfDay startTime, TimeOfDay endTime, {String? scheduleId}) async {
+        // Ensure that the 'type' field is properly retrieved here
+        String type = eventData?['type'] ?? 'Unknown'; // Retrieve type from event data
+
+        _schedules[date]?.add({
+          'id': event.id, // Store the schedule ID
+          'userNames': List<String>.from(event['userNames']),
+          'startTime': event['startTime'],
+          'endTime': event['endTime'],
+          'createdBy': loggedInTrainer,
+          'type': type, // Store the 'type' field from Firestore
+        });
+      }
+    });
+  }
+}
+
+
+Future<void> _saveSchedule({
+  required DateTime date,
+  required List<String> selectedUserIds,
+  required TimeOfDay startTime,
+  required TimeOfDay endTime,
+  required String createdBy, // Existing parameter for the creator
+  String? scheduleId,         // Optional schedule ID
+  required String type,       // Type parameter
+}) async {
     CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
     DocumentReference dateDocRef = schedulesCollection.doc(date.toIso8601String());
 
@@ -458,7 +513,7 @@ _CalendarScreenState(this.loggedInTrainer);
     CollectionReference eventsCollection = dateDocRef.collection('events');
 
     List<String> userNames = [];
-    for (String userId in userIds) {
+    for (String userId in selectedUserIds) {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
       if (userDoc.exists) {
         userNames.add(userDoc['username']);
@@ -473,7 +528,8 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'createdBy': loggedInTrainer
+        'createdBy': loggedInTrainer,
+        'type' :type
       });
     } else {
       // Otherwise, create a new event
@@ -481,7 +537,8 @@ _CalendarScreenState(this.loggedInTrainer);
         'userNames': userNames,
         'startTime': '${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')}',
         'endTime': '${endTime.hour}:${endTime.minute.toString().padLeft(2, '0')}',
-        'createdBy': loggedInTrainer
+        'createdBy': loggedInTrainer,
+        'type' :type
       });
     }
 
@@ -570,10 +627,21 @@ _CalendarScreenState(this.loggedInTrainer);
                   backgroundColor: Colors.amber,
                 ),
                 onPressed: () {
+                  if (type.isNotEmpty) {
+                    type = type.substring(0, type.length - 2); // Remove trailing comma and space
+                  }
+                  
                   Navigator.pop(context);
-                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime, scheduleId: schedule['id']);
+                  _saveSchedule(
+                    date: _selectedDay,
+                    selectedUserIds: selectedUserIds,
+                    startTime: startTime,
+                    endTime: endTime,
+                    createdBy: loggedInTrainer,
+                    type: type,
+                  );
                 },
-                child: Text('Update', style: TextStyle(color: Colors.black)),
+                child: Text('Create', style: TextStyle(color: Colors.black)),
               ),
             ],
           );
@@ -595,16 +663,19 @@ void _showScheduleCreationDialog(String loggedInTrainer) async {
   List<Map<String, dynamic>> userList = [];
   List<Map<String, dynamic>> filteredUsers = [];
   TextEditingController searchController = TextEditingController();
-  
+
+  bool isFSelected = false;
+  bool isSSelected = false;
+  bool isPSelected = false;
+
   // Load users from Firestore
   QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').get();
   userSnapshot.docs.forEach((doc) {
     userList.add({'id': doc.id, 'username': doc['username']});
   });
-  
+
   filteredUsers = List.from(userList); // Initially show all users
-  
-  List<String> selectedUserIds = [];
+  List<String> selectedUserIds = []; // Correct variable name
   TimeOfDay startTime = TimeOfDay.now();
   TimeOfDay endTime = TimeOfDay.now();
 
@@ -613,13 +684,10 @@ void _showScheduleCreationDialog(String loggedInTrainer) async {
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          // Method to filter users based on search input
           void filterUsers(String query) {
             setState(() {
               filteredUsers = userList.where((user) {
-                return user['username']
-                    .toLowerCase()
-                    .contains(query.toLowerCase());
+                return user['username'].toLowerCase().contains(query.toLowerCase());
               }).toList();
             });
           }
@@ -634,6 +702,67 @@ void _showScheduleCreationDialog(String loggedInTrainer) async {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // F, S, P selection in a row (moved before Start Time)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      // F selection
+                      Row(
+                        children: [
+                          Text(
+                            "F",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          Checkbox(
+                            value: isFSelected,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                isFSelected = value ?? false;
+                              });
+                            },
+                            activeColor: Colors.amber,
+                          ),
+                        ],
+                      ),
+                      // S selection
+                      Row(
+                        children: [
+                          Text(
+                            "S",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          Checkbox(
+                            value: isSSelected,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                isSSelected = value ?? false;
+                              });
+                            },
+                            activeColor: Colors.amber,
+                          ),
+                        ],
+                      ),
+                      // P selection
+                      Row(
+                        children: [
+                          Text(
+                            "P",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          Checkbox(
+                            value: isPSelected,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                isPSelected = value ?? false;
+                              });
+                            },
+                            activeColor: Colors.amber,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
                   // Time Pickers
                   _buildTimePickerRow('Start Time:', startTime, (picked) {
                     if (picked != null) setState(() => startTime = picked);
@@ -690,8 +819,23 @@ void _showScheduleCreationDialog(String loggedInTrainer) async {
                   backgroundColor: Colors.amber,
                 ),
                 onPressed: () {
+                  String type = '';
+                  if (isFSelected) type += 'F, ';
+                  if (isSSelected) type += 'S, ';
+                  if (isPSelected) type += 'P, ';
+                  if (type.isNotEmpty) {
+                    type = type.substring(0, type.length - 2); // Remove trailing comma and space
+                  }
+
                   Navigator.pop(context);
-                  _saveSchedule(_selectedDay, selectedUserIds, startTime, endTime);
+                  _saveSchedule(
+                    date: _selectedDay,
+                    selectedUserIds: selectedUserIds,
+                    startTime: startTime,
+                    endTime: endTime,
+                    createdBy: loggedInTrainer,
+                    type: type, // Added type here
+                  );
                 },
                 child: Text('Create', style: TextStyle(color: Colors.black)),
               ),
@@ -702,6 +846,7 @@ void _showScheduleCreationDialog(String loggedInTrainer) async {
     },
   );
 }
+
 
 
 Widget _buildScheduleList() {
@@ -715,6 +860,7 @@ Widget _buildScheduleList() {
               // Determine the border color based on the createdBy field
               Color borderColor = Colors.grey; // Default color
               String createdBy = schedule['createdBy'] ?? 'Unknown';
+              String type = schedule['type'] ?? 'Unknown';
 
               if (createdBy == 'Sulo') {
                 borderColor = Colors.yellow;
@@ -730,8 +876,8 @@ Widget _buildScheduleList() {
                 child: ListTile(
                   title: Text('${schedule['userNames'].join(', ')}'),
                   subtitle: Text(
-                    'Time: ${schedule['startTime']} - ${schedule['endTime']}',
-                  ),
+                    'Time: ${schedule['startTime']} - ${schedule['endTime']} - Type: $type',
+                  ), // Added type after endTime
                   onTap: () => _showScheduleEditingDialog(schedule),
                   trailing: IconButton(
                     icon: Icon(Icons.delete),
@@ -744,6 +890,7 @@ Widget _buildScheduleList() {
         : Center(child: Text('No schedules for this day')),
   );
 }
+
 
 
   Widget _buildTimePickerRow(String label, TimeOfDay time, Function(TimeOfDay?) onTimeChanged) {
@@ -810,6 +957,142 @@ Widget _buildScheduleList() {
   },
             child: Text('Create Schedule'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+          ),
+          _buildScheduleList(),
+        ],
+      ),
+    );
+  }
+}
+
+class UserCalendarScreen extends StatefulWidget {
+  final String? username; // Optional username parameter for filtering
+
+  UserCalendarScreen({Key? key, this.username}) : super(key: key);
+
+  @override
+  _UserCalendarScreenState createState() => _UserCalendarScreenState();
+}
+
+class _UserCalendarScreenState extends State<UserCalendarScreen> {
+  Map<DateTime, List<Map<String, dynamic>>> _schedules = {};
+  DateTime _selectedDay = DateTime.now();
+  late final ValueNotifier<DateTime> _focusedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedDay = ValueNotifier<DateTime>(_selectedDay);
+    _loadSchedules();
+  }
+
+  Future<void> _loadSchedules() async {
+    CollectionReference schedulesCollection = FirebaseFirestore.instance.collection('schedules');
+    QuerySnapshot snapshot = await schedulesCollection.get();
+
+    setState(() {
+      _schedules = {};
+    });
+
+    for (var doc in snapshot.docs) {
+      DateTime date = DateTime.parse(doc.id);
+      QuerySnapshot eventsSnapshot = await schedulesCollection.doc(doc.id).collection('events').get();
+
+      setState(() {
+        if (_schedules[date] == null) _schedules[date] = [];
+        for (var event in eventsSnapshot.docs) {
+          Map<String, dynamic>? eventData = event.data() as Map<String, dynamic>?;
+
+          // Filter based on the logged-in user's username
+          List<String> userNames = List<String>.from(event['userNames']);
+          if (userNames.contains(widget.username)) { // Only include if username matches
+            String loggedInTrainer = eventData?.containsKey('createdBy') == true
+                ? event['createdBy']
+                : 'Unknown Trainer';
+
+            _schedules[date]?.add({
+              'id': event.id, // Store the schedule ID
+              'userNames': userNames,
+              'startTime': event['startTime'],
+              'endTime': event['endTime'],
+              'createdBy': loggedInTrainer
+              
+            });
+          }
+        }
+      });
+    }
+  }
+
+  Widget _buildScheduleList() {
+    return Expanded(
+      child: _schedules[_selectedDay]?.isNotEmpty == true
+          ? ListView.builder(
+              itemCount: _schedules[_selectedDay]?.length ?? 0,
+              itemBuilder: (context, index) {
+                final schedule = _schedules[_selectedDay]![index];
+                
+                // Determine the border color based on the createdBy field
+                Color borderColor = Colors.grey; // Default color
+                String createdBy = schedule['createdBy'] ?? 'Unknown';
+                
+
+                if (createdBy == 'Sulo') {
+                  borderColor = Colors.yellow;
+                } else if (createdBy == 'Fero') {
+                  borderColor = Colors.red;
+                }
+
+                return Card(
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: borderColor, width: 2), // Set border color here
+                    borderRadius: BorderRadius.circular(8), // Optional: set border radius for rounded corners
+                  ),
+                  child: ListTile(
+                    title: Text('${schedule['userNames'].join(', ')}'),
+                    subtitle: Text(
+                      'Time: ${schedule['startTime']} - ${schedule['endTime']}',
+                    ),
+                  ),
+                );
+              },
+            )
+          : Center(child: Text('No schedules for this day')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('User Calendar')),
+      body: Column(
+        children: [
+          TableCalendar(
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+            focusedDay: _focusedDay.value,
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 1, 1),
+            eventLoader: (day) => _schedules[day] ?? [],
+            selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay.value = focusedDay;
+              });
+            },
+            calendarStyle: CalendarStyle(
+              selectedDecoration: BoxDecoration(
+                color: Colors.amber, // Change to your desired color
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: Colors.blueAccent,
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
           _buildScheduleList(),
         ],
