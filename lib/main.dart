@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String errorMessage = '';
   
 
-  Future<void> _login() async {
+Future<void> _login() async {
   String username = _usernameController.text;
   String password = _passwordController.text;
 
@@ -89,22 +89,34 @@ class _LoginScreenState extends State<LoginScreen> {
         // Get FCM token for logged-in user
         String? fcmToken = await FirebaseMessaging.instance.getToken();
 
-        // Store the FCM token in Firestore (for example, in the 'users' collection)
-        await FirebaseFirestore.instance.collection('users').doc(loggedInUser).update({
-          'fcmToken': fcmToken,
-        });
+        // Query Firestore to find the document by username
+        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: loggedInUser)
+            .limit(1)
+            .get();
 
-        // Pass 'user' and 'loggedInUser' to UserScreen constructor
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserScreen({
-              'username': loggedInUser,
-              'sessionCount': user['sessionCount'],
-              'loggedInTrainer': 'N/A', // Or pass the correct loggedInTrainer if needed
-            }, loggedInUser),
-          ),
-        );
+        if (querySnapshot.docs.isNotEmpty) {
+          String documentId = querySnapshot.docs.first.id;  // Get the document ID
+          
+          // Store the FCM token in Firestore
+          await FirebaseFirestore.instance.collection('users').doc(documentId).update({
+            'fcmToken': fcmToken,
+          });
+
+          // Pass 'user' and 'loggedInUser' to UserScreen constructor
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserScreen({
+                'fcmToken': user['fcmToken'],
+                'username': loggedInUser,
+                'sessionCount': user['sessionCount'],
+                'loggedInTrainer': 'N/A', // Or pass the correct loggedInTrainer if needed
+              }, loggedInUser),
+            ),
+          );
+        }
         break;
       }
     }
@@ -116,6 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 }
+
 
 
   Future<List<Map<String, dynamic>>> getUserCredentials() async {
@@ -200,6 +213,7 @@ _TrainerScreenState(this.loggedInTrainer);
       'username': username,
       'password': password,
       'sessionCount': sessionCount,
+      'fcmToken': '',
     });
     _loadUsers(); // Reload users after creating a new one
   }
