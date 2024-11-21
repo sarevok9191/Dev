@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -224,12 +226,66 @@ _TrainerScreenState(this.loggedInTrainer);
     _loadUsers(); // Reload users after deletion
   }
 
-  Future<void> _editUserSessions(String userId, int sessionCount) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'sessionCount': sessionCount,
-    });
-    _loadUsers(); // Reload users after editing
+Future<void> _sendPushNotification(String fcmToken, int sessionCount) async {
+  const String serverKey = '97a30d731141ceae9a1e6d9766e502b2c16630d6'; // Replace with your FCM Server Key
+  final Uri fcmUrl = Uri.parse('https://fcm.googleapis.com/v1/projects/myproject-b5ae1/messages:send');
+
+  try {
+    final response = await http.post(
+      fcmUrl,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=$serverKey',
+      },
+      body: jsonEncode({
+        'to': fcmToken,
+        'notification': {
+          'title': 'Session Updated',
+          'body': 'Your session count has been updated to $sessionCount.',
+        },
+        'data': {
+          'sessionCount': sessionCount.toString(),
+        },
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Notification sent successfully');
+    } else {
+      print('Failed to send notification: ${response.body}');
+    }
+  } catch (e) {
+    print('Error sending push notification: $e');
   }
+}
+
+
+
+Future<void> _editUserSessions(String userId, int sessionCount) async {
+  // Update the session count in Firestore
+  await FirebaseFirestore.instance.collection('users').doc(userId).update({
+    'sessionCount': sessionCount,
+  });
+
+  // Fetch the user's document
+  DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
+  // Safely extract 'fcmToken' from the document data
+  if (userDoc.exists) {
+    Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+    String? fcmToken = data['fcmToken'];
+
+    // Check if FCM token is available
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      // Send a push notification
+      await _sendPushNotification(fcmToken, sessionCount);
+    }
+  }
+
+  _loadUsers(); // Reload users after editing
+}
+
+
 
   void _showUserCreationDialog() {
     String newUsername = '';
@@ -240,7 +296,7 @@ _TrainerScreenState(this.loggedInTrainer);
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Create User'),
+          title: Text('Crecdate User'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
