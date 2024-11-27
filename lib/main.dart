@@ -5,10 +5,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  ).then((settings) {
+    print('User granted permission: ${settings.authorizationStatus}');
+  });
+
   runApp(MyApp());
 }
 
@@ -90,6 +99,7 @@ Future<void> _login() async {
 
         // Get FCM token for logged-in user
         String? fcmToken = await FirebaseMessaging.instance.getToken();
+        
 
         // Query Firestore to find the document by username
         QuerySnapshot querySnapshot = await FirebaseFirestore.instance
@@ -105,7 +115,6 @@ Future<void> _login() async {
           await FirebaseFirestore.instance.collection('users').doc(documentId).update({
             'fcmToken': fcmToken,
           });
-
           // Pass 'user' and 'loggedInUser' to UserScreen constructor
           Navigator.pushReplacement(
             context,
@@ -115,10 +124,13 @@ Future<void> _login() async {
                 'username': loggedInUser,
                 'sessionCount': user['sessionCount'],
                 'loggedInTrainer': 'N/A', // Or pass the correct loggedInTrainer if needed
+                
               }, loggedInUser),
             ),
           );
+          
         }
+        print("FCM Token: $fcmToken");
         break;
       }
     }
@@ -195,11 +207,37 @@ class _TrainerScreenState extends State<TrainerScreen> {
   String loggedInTrainer = "";
 _TrainerScreenState(this.loggedInTrainer);
 
+
   @override
   void initState() {
     super.initState();
     _loadUsers();
   }
+
+
+
+
+// Save session and handle document not found gracefully
+/*Future<void> saveSession(String userId, Map<String, dynamic> sessionData) async {
+  try {
+    await FirebaseFirestore.instance
+        .collection('sessions')
+        .doc(userId)
+        .update(sessionData);
+    debugPrint("Session updated successfully.");
+  } catch (e) {
+    debugPrint("Error updating session in Firestore: $e");
+    if (e.toString().contains('not-found')) {
+      debugPrint("Document not found for user $userId. Ensure the document exists.");
+    }
+  }
+}*/
+
+
+  
+  
+
+
 
   Future<void> _loadUsers() async {
     CollectionReference usersCollection = FirebaseFirestore.instance.collection('users');
@@ -208,7 +246,7 @@ _TrainerScreenState(this.loggedInTrainer);
       users = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>}).toList();
     });
   }
-
+ 
   Future<void> _createUser(String username, String password, int sessionCount) async {
     CollectionReference usersCollection = FirebaseFirestore.instance.collection('users');
     await usersCollection.add({
@@ -219,73 +257,6 @@ _TrainerScreenState(this.loggedInTrainer);
     });
     _loadUsers(); // Reload users after creating a new one
   }
-
-  Future<void> _deleteUser(String userId) async {
-    CollectionReference usersCollection = FirebaseFirestore.instance.collection('users');
-    await usersCollection.doc(userId).delete();
-    _loadUsers(); // Reload users after deletion
-  }
-
-Future<void> _sendPushNotification(String fcmToken, int sessionCount) async {
-  const String serverKey = '97a30d731141ceae9a1e6d9766e502b2c16630d6'; // Replace with your FCM Server Key
-  final Uri fcmUrl = Uri.parse('https://fcm.googleapis.com/v1/projects/myproject-b5ae1/messages:send');
-
-  try {
-    final response = await http.post(
-      fcmUrl,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'key=$serverKey',
-      },
-      body: jsonEncode({
-        'to': fcmToken,
-        'notification': {
-          'title': 'Session Updated',
-          'body': 'Your session count has been updated to $sessionCount.',
-        },
-        'data': {
-          'sessionCount': sessionCount.toString(),
-        },
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      print('Notification sent successfully');
-    } else {
-      print('Failed to send notification: ${response.body}');
-    }
-  } catch (e) {
-    print('Error sending push notification: $e');
-  }
-}
-
-
-
-Future<void> _editUserSessions(String userId, int sessionCount) async {
-  // Update the session count in Firestore
-  await FirebaseFirestore.instance.collection('users').doc(userId).update({
-    'sessionCount': sessionCount,
-  });
-
-  // Fetch the user's document
-  DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-
-  // Safely extract 'fcmToken' from the document data
-  if (userDoc.exists) {
-    Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-    String? fcmToken = data['fcmToken'];
-
-    // Check if FCM token is available
-    if (fcmToken != null && fcmToken.isNotEmpty) {
-      // Send a push notification
-      await _sendPushNotification(fcmToken, sessionCount);
-    }
-  }
-
-  _loadUsers(); // Reload users after editing
-}
-
-
 
   void _showUserCreationDialog() {
     String newUsername = '';
@@ -330,56 +301,133 @@ Future<void> _editUserSessions(String userId, int sessionCount) async {
     );
   }
 
+  Future<void> _deleteUser(String userId) async {
+    CollectionReference usersCollection = FirebaseFirestore.instance.collection('users');
+    await usersCollection.doc(userId).delete();
+    _loadUsers(); // Reload users after deletion
+  }
+
+
+
+Future<void> sendNotificationAfterEditingSession(String userId) async {
+  try {
+    // Fetch user document
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+
+        if (userDoc.exists) {
+  final fcmToken = userDoc['fcmToken']; // Ensure this matches the exact Firestore field name
+  if (fcmToken != null && fcmToken.isNotEmpty) {
+    debugPrint("FCM Token fetched: $fcmToken");
+    // Continue with sending the notification
+  } else {
+    debugPrint("FCM Token is missing or empty for user $userId.");
+  }
+} else {
+  debugPrint("User document does not exist for ID: $userId.");
+}
+
+    if (userDoc.exists) {
+      final sessionCount = userDoc['sessionCount'] ?? 0;
+      final fcmToken = userDoc['fcmToken'];
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        try {
+          // Ensure proper private key formatting
+          await PushNotificationService.sendNotification(
+            deviceToken: fcmToken,
+            title: "Session Updated",
+            body: "Your session count is now $sessionCount.",
+          );
+          debugPrint("Notification sent successfully to $userId.");
+        } catch (e) {
+          debugPrint("Error in sendNotification: $e");
+        }
+      } else {
+        debugPrint("No FCM token found for user $userId.");
+      }
+    } else {
+      debugPrint("User document does not exist for ID $userId.");
+    }
+  } catch (e) {
+    debugPrint("Error fetching user data: $e");
+  }
+}
+
+
+Future<void> _editUserSessions(String userId, int sessionCount) async {
+  // Update the session count in Firestore
+  await FirebaseFirestore.instance.collection('users').doc(userId).update({
+    'sessionCount': sessionCount,
+    
+  });
+  
+
+  _loadUsers(); // Reload users after editing
+}
+
+
+
+  
+
+  
+
   void _showEditUserDialog(String userId, int sessionCount) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Edit Sessions'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.remove),
-                        onPressed: () {
-                          setState(() {
-                            sessionCount = sessionCount > 0 ? sessionCount - 1 : 0;
-                          });
-                        },
-                      ),
-                      Text('$sessionCount'),
-                      IconButton(
-                        icon: Icon(Icons.add),
-                        onPressed: () {
-                          setState(() {
-                            sessionCount++;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _editUserSessions(userId, sessionCount); // Pass the document ID
-                  },
-                  child: Text('Save'),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Edit Sessions'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.remove),
+                      onPressed: () {
+                        setState(() {
+                          sessionCount = sessionCount > 0 ? sessionCount - 1 : 0;
+                        });
+                      },
+                    ),
+                    Text('$sessionCount'),
+                    IconButton(
+                      icon: Icon(Icons.add),
+                      onPressed: () {
+                        setState(() {
+                          sessionCount++;
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: ()async {
+                  Navigator.pop(context);
+                  _editUserSessions(userId, sessionCount); // Save session changes
+                 // _updateSessionInFirestore(userId, sessionCount); // Update Firestore and set notification flag
+                  await sendNotificationAfterEditingSession(userId);
+                },
+                child: Text('Save'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+
 
 @override
 Widget build(BuildContext context) {
@@ -938,7 +986,7 @@ Widget _buildScheduleList() {
               // Determine the border color based on the createdBy field
               Color borderColor = Colors.grey; // Default color
               String createdBy = schedule['createdBy'] ?? 'Unknown';
-              String type = schedule['type'] ?? 'Unknown';
+              //String type = schedule['type'] ?? 'Unknown';
 
               if (createdBy == 'Sulo') {
                 borderColor = Colors.yellow;
