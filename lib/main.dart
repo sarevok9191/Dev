@@ -504,52 +504,107 @@ Widget build(BuildContext context) {
 
 
 class UserScreen extends StatelessWidget {
-  final Map<String, dynamic> user;  // The user data map
-  final String loggedInUser;  // The username of the logged-in user
+  final Map<String, dynamic> user; // The user data map
+  final String loggedInUser; // The username of the logged-in user
 
-  UserScreen(this.user, this.loggedInUser);  // Constructor with two positional arguments
+  UserScreen(this.user, this.loggedInUser); // Constructor with two positional arguments
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center, // Center IconButton horizontally
           children: [
-            Text('User Dashboard'),
             IconButton(
               icon: Icon(Icons.calendar_today),
               onPressed: () {
                 // Navigate to CalendarScreen and pass the 'loggedInUser' for filtering
                 Navigator.push(
                   context,
-              MaterialPageRoute(builder: (context) => UserCalendarScreen(username: loggedInUser),
-  ),
-);
+                  MaterialPageRoute(
+                    builder: (context) => UserCalendarScreen(username: loggedInUser),
+                  ),
+                );
               },
             ),
           ],
         ),
       ),
       body: Center(
-        child: Container(
-          width: 200,
-          height: 200,
-          decoration: BoxDecoration(
-            color: Colors.yellow,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            'Welcome ${user['username']}\nSessions: ${user['sessionCount']}',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
+        child: CustomPaint(
+          size: Size(200, 200), // Specify the size of the circle
+          painter: StrokedGlowCirclePainter(),
+          child: Container(
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Remaining Sessions:',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  '${user['sessionCount']}', // Displays the session count in digital font
+                  style: TextStyle(
+                    fontSize: 70,
+                    fontFamily: 'Digital', // Ensure this matches your font name in pubspec.yaml
+                    color: Colors.amber, // Example color
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+class StrokedGlowCirclePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double radius = size.width / 4;
+
+    // Draw the stroked glow
+    final Paint glowStrokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.0 // Width of the glow stroke
+      ..color = Colors.yellow.withOpacity(0.5) // Glow color with transparency
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 15); // Glow blur
+
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2), // Center of the circle
+      radius - glowStrokePaint.strokeWidth / 2, // Adjust radius for stroke alignment
+      glowStrokePaint,
+    );
+
+    // Draw the stroked circle
+    final Paint strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0
+      ..color = Colors.yellow;
+
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2), // Center of the circle
+      radius - strokePaint.strokeWidth, // Adjust radius for the top stroke
+      strokePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+
+
 
 
 
