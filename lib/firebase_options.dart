@@ -28,15 +28,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -54,7 +48,7 @@ class DefaultFirebaseOptions {
     appId: '1:521925336650:android:1720d8443b2e22fc3250b3',
     messagingSenderId: '521925336650',
     projectId: 'boosttrainingcourt-60158',
-    storageBucket: 'boosttrainingcourt-60158.appspot.com',
+    storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -62,8 +56,34 @@ class DefaultFirebaseOptions {
     appId: '1:521925336650:ios:3fb18232508978ec3250b3',
     messagingSenderId: '521925336650',
     projectId: 'boosttrainingcourt-60158',
-    storageBucket: 'boosttrainingcourt-60158.appspot.com',
+    storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
     iosBundleId: 'com.example.myApp',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCYvYIaKvVwtncPODsRpPTXP0AD6VnHdvA',
+    appId: '1:521925336650:web:4c9ea332b13d12e53250b3',
+    messagingSenderId: '521925336650',
+    projectId: 'boosttrainingcourt-60158',
+    storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCD-unz7OUvH3qOGfdtjLLu4YORu-Z-hjU',
+    appId: '1:521925336650:ios:3fb18232508978ec3250b3',
+    messagingSenderId: '521925336650',
+    projectId: 'boosttrainingcourt-60158',
+    storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
+    iosBundleId: 'com.example.myApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCYvYIaKvVwtncPODsRpPTXP0AD6VnHdvA',
+    appId: '1:521925336650:web:c8dccb439ca978b03250b3',
+    messagingSenderId: '521925336650',
+    projectId: 'boosttrainingcourt-60158',
+    authDomain: 'boosttrainingcourt-60158.firebaseapp.com',
+    storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
   );
 
 }
