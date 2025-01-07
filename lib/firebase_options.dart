@@ -65,6 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:521925336650:web:4c9ea332b13d12e53250b3',
     messagingSenderId: '521925336650',
     projectId: 'boosttrainingcourt-60158',
+    authDomain: 'boosttrainingcourt-60158.firebaseapp.com',
     storageBucket: 'boosttrainingcourt-60158.firebasestorage.app',
   );
 

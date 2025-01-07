@@ -10,7 +10,7 @@ import 'package:my_app/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.web,);
   FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
