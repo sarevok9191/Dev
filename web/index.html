@@ -11,10 +11,10 @@
   
   <!-- Firebase Configuration -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-    import { getMessaging } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js";
+    import { getMessaging } from "https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCYvYIaKvVwtncPODsRpPTXP0AD6VnHdvA",
@@ -24,13 +24,13 @@
       messagingSenderId: "521925336650",
       appId: "1:521925336650:web:4c9ea332b13d12e53250b3"
     };
-
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', { type: 'module' });
     const app = initializeApp(firebaseConfig);
     
     const messaging = getMessaging(app);
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      navigator.serviceWorker.register('/firebase-messaging-sw.js', { type: 'module' })
         .then((registration) => {
           console.log('Service Worker registered with scope:', registration.scope);
         }).catch((err) => {
