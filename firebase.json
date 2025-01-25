@@ -47,6 +47,9 @@
         "firebase-debug.*.log",
         "*.local"
       ],
+      "scripts": {
+    "lint": "eslint ."
+  },
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
@@ -58,6 +61,12 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
   },
   "storage": {
